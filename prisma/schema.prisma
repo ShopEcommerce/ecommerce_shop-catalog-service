@@ -1,0 +1,101 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --- ENUMS ---
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  HIDDEN
+  ARCHIVED
+}
+
+enum EventStatus {
+  PENDING
+  PUBLISHED
+  FAILED
+}
+
+// --- MODELS ---
+
+model Category {
+  id           String    @id @default(uuid())
+  parentId     String?
+  name         String    @unique
+  slug         String    @unique
+  description  String?
+  thumbnailUrl String?
+  
+  products     Product[]
+  parent       Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children     Category[] @relation("CategoryTree")
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("categories")
+}
+
+model Product {
+  id           String        @id @default(uuid())
+  sellerId     String
+  name         String
+  slug         String        @unique
+  description  String        @db.Text
+  brand        String?
+  mainImage    String?
+  categoryId   String
+  status       ProductStatus @default(DRAFT)
+  
+  category     Category      @relation(fields: [categoryId], references: [id])
+  variants     ProductVariant[]
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@map("products")
+}
+
+model ProductVariant {
+  id           String    @id @default(uuid())
+  productId    String
+  sku          String    @unique
+  
+  attributes   Json?     
+  
+  price        Decimal   @db.Decimal(10, 2)
+  stock        Int       @default(0)
+  imageUrl     String?
+  
+  product      Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("product_variants")
+}
+
+model OutboxEvent {
+  id            String      @id @default(uuid())
+  subject       String
+  payload       Json
+  status        EventStatus @default(PENDING)
+  errorReason   String?
+  createdAt     DateTime    @default(now())
+  processedAt   DateTime?
+
+  @@map("outbox_events")
+}
+
+model ProcessedEvent {
+  eventId       String    @id
+  subject       String
+  processedAt   DateTime  @default(now())
+
+  @@map("processed_events")
+}

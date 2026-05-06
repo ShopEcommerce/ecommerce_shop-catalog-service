@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { app } from './app';
 import { rabbitmqWrapper } from '@teleshop/common';
+import { startOutboxWorker } from './workers/outbox.worker';
 import pino from 'pino';
 
 const logger = pino();
@@ -19,16 +20,18 @@ const start = async () => {
   try {
     await rabbitmqWrapper.connect(process.env.RABBITMQ_URL);
 
+    startOutboxWorker();
+
     // Graceful Shutdown
     process.on('SIGINT', () => rabbitmqWrapper.close());
     process.on('SIGTERM', () => rabbitmqWrapper.close());
 
     const port = process.env.PORT || 3002;
     app.listen(port, () => {
-      logger.info(`[Account Service] is running on port ${port}`);
+      logger.info(`[Catalog Service] is running on port ${port}`);
     });
   } catch (err) {
-    logger.error({ msg: 'Failed to start Account Service', error: err });
+    logger.error({ msg: 'Failed to start Catalog Service', error: err });
   }
 };
 

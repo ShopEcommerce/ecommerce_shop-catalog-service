@@ -2,6 +2,8 @@ import express, { RequestHandler, ErrorRequestHandler } from 'express';
 import cookieSession from 'cookie-session';
 import cors from 'cors';
 import { errorHandler, NotFoundError, correlationId, currentUser } from '@teleshop/common';
+import { categoryRouter } from './modules/category/category.route';
+import { productRouter } from './modules/product/product.route';
 
 const app = express();
 
@@ -16,7 +18,7 @@ app.use(
 
 app.use(express.json());
 
-app.use(correlationId as unknown as RequestHandler);
+app.use(correlationId as RequestHandler);
 
 app.get('/health', (_req, res) => {
   res.status(200).send({ status: 'ok', service: 'catalog-service' });
@@ -31,12 +33,16 @@ app.use(
   })
 );
 
-app.use(currentUser as unknown as RequestHandler);
+app.use(currentUser as RequestHandler);
+
+app.use("/api/category", categoryRouter);
+
+app.use("/api/product", productRouter);
 
 app.all(/.*/, () => {
   throw new NotFoundError();
 });
 
-app.use(errorHandler as unknown as ErrorRequestHandler);
+app.use(errorHandler as ErrorRequestHandler);
 
 export { app };

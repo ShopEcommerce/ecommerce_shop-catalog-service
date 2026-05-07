@@ -1,6 +1,6 @@
 import express, { RequestHandler } from 'express';
 import { ProductController } from './product.controller';
-import { createProductSchema, updateProductSchema, listProductQuerySchema } from './product.schema';
+import { createProductSchema, updateProductSchema, listProductQuerySchema, validatePricesSchema } from './product.schema';
 import { validateZod } from '../../middlewares/validate.middleware'; // Đảm bảo đường dẫn đúng
 import { asyncHandler, requireAuth, requireRole } from '@teleshop/common';
 
@@ -23,6 +23,12 @@ router.get(
 router.get(
   '/:idOrSlug',
   asyncHandler(ProductController.getProduct as any)
+);
+
+router.post(
+  '/validate-prices',
+  validateZod(validatePricesSchema),
+  asyncHandler(ProductController.validatePrices as any)
 );
 
 

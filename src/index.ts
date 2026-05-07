@@ -3,6 +3,7 @@ import { app } from './app';
 import { rabbitmqWrapper } from '@teleshop/common';
 import { startOutboxWorker } from './workers/outbox.worker';
 import pino from 'pino';
+import { OrderCreatedListener } from './events/listeners/order-created-listener';
 
 const logger = pino();
 
@@ -26,7 +27,9 @@ const start = async () => {
     process.on('SIGINT', () => rabbitmqWrapper.close());
     process.on('SIGTERM', () => rabbitmqWrapper.close());
 
-    const port = process.env.PORT || 3002;
+    new OrderCreatedListener(rabbitmqWrapper.channel).listen();
+
+    const port = process.env.PORT;
     app.listen(port, () => {
       logger.info(`[Catalog Service] is running on port ${port}`);
     });

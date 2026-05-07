@@ -53,6 +53,12 @@ export const listProductQuerySchema = z.object({
   }),
 });
 
+export const validatePricesSchema = z.object({
+  body: z.object({
+    variantIds: z.array(z.string().uuid('Invalid Variant ID')).min(1, 'At least one Variant ID is required'),
+  }),
+});
+
 export type CreateProductInput = z.infer<typeof createProductSchema>['body'];
 export type UpdateProductInput = z.infer<typeof updateProductSchema>['body'];
 export type ListProductQuery = z.infer<typeof listProductQuerySchema>['query'];

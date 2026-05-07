@@ -184,4 +184,11 @@ export class ProductRepository {
       }
     };
   }
+
+  static async getVariantsById(ids: string[]) {
+    return prisma.productVariant.findMany({ 
+      where: { id: { in: ids } },
+      select: { id: true, price: true }
+    });
+  }
 }

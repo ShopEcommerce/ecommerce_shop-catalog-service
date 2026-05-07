@@ -39,4 +39,11 @@ export class ProductController {
     await ProductService.archiveProduct(req.params.id, sellerId, role, correlationId);
     res.status(200).send({ message: 'Product archived successfully' });
   }
+
+  static async validatePrices(req: Request<{}, {}, { variantIds: string[] }>, res: Response) {
+    const { variantIds } = req.body;
+        
+    const priceMap = await ProductService.validatePrices(variantIds);
+    res.status(200).send(priceMap);
+  }
 }

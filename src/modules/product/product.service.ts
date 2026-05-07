@@ -108,4 +108,15 @@ export class ProductService {
 
     return ProductRepository.updateProduct(id, { status: 'ARCHIVED' } as any, correlationId);
   }
+
+  static async validatePrices(variantIds: string[]) {
+    const variants = await ProductRepository.getVariantsById(variantIds);
+
+    const priceMap: Record<string, number> = {};
+    variants.forEach(v => {
+      priceMap[v.id] = Number(v.price);
+    });
+
+    return priceMap;
+  }
 }

@@ -51,6 +51,9 @@ model Product {
   mainImage    String?
   categoryId   String
   status       ProductStatus @default(DRAFT)
+
+  ratingAverage Float    @default(0.0)
+  reviewCount   Int      @default(0)
   
   category     Category      @relation(fields: [categoryId], references: [id])
   variants     ProductVariant[]

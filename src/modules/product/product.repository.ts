@@ -94,28 +94,29 @@ export class ProductRepository {
         });
 
         for (const variant of variants) {
-          await tx.productVariant.upsert({
-            where: { id: variant.id || 'new-uuid-that-does-not-exist' }, // Mẹo upsert nếu không có ID
-            update: {
-              sku: variant.sku,
-              price: variant.price,
-              stock: variant.stock,
-              imageUrl: variant.imageUrl,
-              attributes: (variant.attributes
-                ? variant.attributes
-                : Prisma.DbNull) as Prisma.InputJsonValue,
-            },
-            create: {
-              productId: id,
-              sku: variant.sku,
-              price: variant.price,
-              stock: variant.stock,
-              imageUrl: variant.imageUrl,
-              attributes: (variant.attributes
-                ? variant.attributes
-                : Prisma.DbNull) as Prisma.InputJsonValue,
-            },
-          });
+          const variantPayload = {
+            sku: variant.sku,
+            price: variant.price,
+            stock: variant.stock,
+            imageUrl: variant.imageUrl,
+            attributes: (variant.attributes
+              ? variant.attributes
+              : Prisma.DbNull) as Prisma.InputJsonValue,
+          };
+
+          if (variant.id) {
+            await tx.productVariant.update({
+              where: { id: variant.id },
+              data: variantPayload,
+            });
+          } else {
+            await tx.productVariant.create({
+              data: {
+                ...variantPayload,
+                productId: id,
+              },
+            });
+          }
         }
       }
 
@@ -163,6 +164,13 @@ export class ProductRepository {
       };
     }
 
+    let orderByCondition: Prisma.ProductOrderByWithRelationInput = {};
+    if (sortBy === 'price') {
+      orderByCondition = { createdAt: sortOrder };
+    } else {
+      orderByCondition = { [sortBy || 'createdAt']: sortOrder || 'desc' };
+    }
+
     const [products, totalCount] = await Promise.all([
       prisma.product.findMany({
         where: whereCondition,
@@ -170,9 +178,9 @@ export class ProductRepository {
         take: limit,
         include: {
           category: { select: { name: true, slug: true } },
-          variants: true, // Lấy biến thể để hiển thị giá
+          variants: true,
         },
-        orderBy: sortBy === 'price' ? { variants: { _count: sortOrder } } : { [sortBy]: sortOrder },
+        orderBy: orderByCondition,
       }),
       prisma.product.count({ where: whereCondition }),
     ]);

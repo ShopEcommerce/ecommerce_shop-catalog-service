@@ -1,5 +1,5 @@
 import { Message } from 'amqplib';
-import { BaseListener, QueueGroupNames } from '@teleshop/common';
+import { BaseListener, QueueGroupNames, Subjects } from '@teleshop/common';
 import { prisma } from '../../db/prisma';
 import { InboxRepository } from '../../modules/inbox/inbox.repository';
 import pino from 'pino';
@@ -7,7 +7,7 @@ import pino from 'pino';
 const logger = pino({ name: 'Catalog-ReviewDeletedListener' });
 
 export class ReviewDeletedListener extends BaseListener<any> {
-  subject: any = 'ReviewDeleted';
+  readonly subject = Subjects.ReviewDeleted;
   queueGroupName = QueueGroupNames.CatalogService;
 
   async onMessage(data: any, _msg: Message) {

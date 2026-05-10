@@ -52,7 +52,7 @@ jobs:
           cd catalog-service
           npm run lint
 
-      # - name: Run Unit Tests
-      #   run: |
-      #     cd catalog-service
-      #     npm run test:ci
+      - name: Run Unit Tests
+        run: |
+          cd catalog-service
+          npm run test:ci

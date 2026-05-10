@@ -2,7 +2,6 @@ import { prisma } from '../../db/prisma';
 import { Prisma } from '@prisma/client';
 
 export class CategoryRepository {
-  
   static async create(data: Prisma.CategoryUncheckedCreateInput) {
     return prisma.category.create({ data });
   }
@@ -17,15 +16,15 @@ export class CategoryRepository {
 
   static async getCategoryTree() {
     return prisma.category.findMany({
-      where: { parentId: null }, 
+      where: { parentId: null },
       include: {
         children: {
           include: {
-            children: true, 
-          }
-        }
+            children: true,
+          },
+        },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
   }
 

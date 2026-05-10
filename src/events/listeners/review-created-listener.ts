@@ -10,11 +10,14 @@ export class ReviewCreatedListener extends BaseListener<any> {
   subject: any = 'ReviewCreated';
   queueGroupName = QueueGroupNames.CatalogService;
 
-  async onMessage(data: any, msg: Message) {
+  async onMessage(data: any, _msg: Message) {
     const { eventId, productId, rating } = data;
     const correlationId = data.correlationId || 'N/A';
 
-    logger.info({ correlationId, eventId, productId, rating }, 'Received event: New review created. Calculating new average rating.');
+    logger.info(
+      { correlationId, eventId, productId, rating },
+      'Received event: New review created. Calculating new average rating.',
+    );
 
     try {
       if (await InboxRepository.isEventProcessed(eventId)) {
@@ -23,7 +26,7 @@ export class ReviewCreatedListener extends BaseListener<any> {
 
       await prisma.$transaction(async (tx) => {
         const product = await tx.product.findUnique({
-          where: { id: productId }
+          where: { id: productId },
         });
 
         if (!product) {
@@ -32,7 +35,7 @@ export class ReviewCreatedListener extends BaseListener<any> {
 
         const currentTotalScore = product.ratingAverage * product.reviewCount;
         const newReviewCount = product.reviewCount + 1;
-        
+
         const rawNewAverage = (currentTotalScore + rating) / newReviewCount;
         const newRatingAverage = Math.round(rawNewAverage * 10) / 10;
 
@@ -40,15 +43,14 @@ export class ReviewCreatedListener extends BaseListener<any> {
           where: { id: productId },
           data: {
             ratingAverage: newRatingAverage,
-            reviewCount: newReviewCount
-          }
+            reviewCount: newReviewCount,
+          },
         });
 
         await InboxRepository.markAsProcessed(eventId, this.subject, tx);
       });
 
       logger.info({ correlationId, productId }, 'Successfully updated the average rating.');
-
     } catch (error: any) {
       logger.error({ err: error.message }, 'Error occurred while processing ReviewCreated event');
       throw error;

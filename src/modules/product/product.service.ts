@@ -4,7 +4,6 @@ import { BadRequestError, NotFoundError, ForbiddenError } from '@teleshop/common
 import { CreateProductInput, UpdateProductInput, ListProductQuery } from './product.schema';
 
 export class ProductService {
-  
   static async createProduct(data: CreateProductInput, sellerId: string, correlationId?: string) {
     const category = await CategoryRepository.findById(data.categoryId);
     if (!category) {
@@ -16,16 +15,18 @@ export class ProductService {
       throw new BadRequestError('Product slug already exists. Please choose a different slug.');
     }
 
-    const incomingSkus = data.variants.map(v => v.sku);
-    
+    const incomingSkus = data.variants.map((v) => v.sku);
+
     const uniqueSkus = new Set(incomingSkus);
     if (uniqueSkus.size !== incomingSkus.length) {
-      throw new BadRequestError('SKU values in the variants array must be unique. Please remove duplicates.');
+      throw new BadRequestError(
+        'SKU values in the variants array must be unique. Please remove duplicates.',
+      );
     }
 
     const duplicatedSkus = await ProductRepository.findExistingSkus(incomingSkus);
     if (duplicatedSkus.length > 0) {
-      const dupList = duplicatedSkus.map(s => s.sku).join(', ');
+      const dupList = duplicatedSkus.map((s) => s.sku).join(', ');
       throw new BadRequestError(`The following SKU values already exist in the system: ${dupList}`);
     }
 
@@ -33,11 +34,11 @@ export class ProductService {
   }
 
   static async updateProduct(
-    id: string, 
-    data: UpdateProductInput, 
-    sellerId: string, 
-    role: string, 
-    correlationId?: string
+    id: string,
+    data: UpdateProductInput,
+    sellerId: string,
+    role: string,
+    correlationId?: string,
   ) {
     const product = await ProductRepository.findById(id);
     if (!product) {
@@ -64,17 +65,21 @@ export class ProductService {
     }
 
     if (data.variants && data.variants.length > 0) {
-      const incomingSkus = data.variants.map(v => v.sku);
-      
+      const incomingSkus = data.variants.map((v) => v.sku);
+
       const uniqueSkus = new Set(incomingSkus);
       if (uniqueSkus.size !== incomingSkus.length) {
-        throw new BadRequestError('SKU values in the variants array must be unique. Please remove duplicates.');
+        throw new BadRequestError(
+          'SKU values in the variants array must be unique. Please remove duplicates.',
+        );
       }
 
       const duplicatedSkus = await ProductRepository.findExistingSkus(incomingSkus, id);
       if (duplicatedSkus.length > 0) {
-        const dupList = duplicatedSkus.map(s => s.sku).join(', ');
-        throw new BadRequestError(`The following SKU values already exist in the system: ${dupList}`);
+        const dupList = duplicatedSkus.map((s) => s.sku).join(', ');
+        throw new BadRequestError(
+          `The following SKU values already exist in the system: ${dupList}`,
+        );
       }
     }
 
@@ -83,8 +88,8 @@ export class ProductService {
 
   static async getProductByIdOrSlug(idOrSlug: string) {
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
-    
-    const product = isUuid 
+
+    const product = isUuid
       ? await ProductRepository.findById(idOrSlug)
       : await ProductRepository.findBySlug(idOrSlug);
 
@@ -113,7 +118,7 @@ export class ProductService {
     const variants = await ProductRepository.getVariantsById(variantIds);
 
     const priceMap: Record<string, number> = {};
-    variants.forEach(v => {
+    variants.forEach((v) => {
       priceMap[v.id] = Number(v.price);
     });
 

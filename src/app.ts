@@ -11,9 +11,9 @@ app.set('trust proxy', true);
 
 app.use(
   cors({
-    origin: true, 
-    credentials: true, 
-  })
+    origin: true,
+    credentials: true,
+  }),
 );
 
 app.use(express.json());
@@ -27,17 +27,17 @@ app.get('/health', (_req, res) => {
 app.use(
   cookieSession({
     signed: false,
-    secure: process.env.NODE_ENV === 'production', 
+    secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-  })
+  }),
 );
 
 app.use(currentUser as RequestHandler);
 
-app.use("/api/category", categoryRouter);
+app.use('/api/category', categoryRouter);
 
-app.use("/api/product", productRouter);
+app.use('/api/product', productRouter);
 
 app.all(/.*/, () => {
   throw new NotFoundError();

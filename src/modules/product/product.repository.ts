@@ -5,11 +5,10 @@ import { Subjects } from '@teleshop/common';
 import { CreateProductInput, UpdateProductInput, ListProductQuery } from './product.schema';
 
 export class ProductRepository {
-  
   static async findById(id: string) {
     return prisma.product.findUnique({
       where: { id },
-      include: { variants: true, category: true }
+      include: { variants: true, category: true },
     });
   }
 
@@ -19,17 +18,20 @@ export class ProductRepository {
 
   static async findExistingSkus(skus: string[], excludeProductId?: string) {
     return prisma.productVariant.findMany({
-      where: { 
+      where: {
         sku: { in: skus },
-        productId: excludeProductId ? { not: excludeProductId } : undefined
+        productId: excludeProductId ? { not: excludeProductId } : undefined,
       },
-      select: { sku: true }
+      select: { sku: true },
     });
   }
 
-  static async createProductWithVariants(data: CreateProductInput, sellerId: string, correlationId?: string) {
+  static async createProductWithVariants(
+    data: CreateProductInput,
+    sellerId: string,
+    correlationId?: string,
+  ) {
     return prisma.$transaction(async (tx) => {
-
       const product = await tx.product.create({
         data: {
           sellerId,
@@ -40,7 +42,7 @@ export class ProductRepository {
           mainImage: data.mainImage,
           categoryId: data.categoryId,
           status: data.status,
-        }
+        },
       });
 
       const variantsData = data.variants.map((v) => ({
@@ -58,38 +60,37 @@ export class ProductRepository {
         correlationId,
         productId: product.id,
         sellerId,
-        status: product.status
+        status: product.status,
       };
 
       await tx.outboxEvent.create({
-        data: { subject: Subjects.ProductCreated, payload: eventPayload as any }
+        data: { subject: Subjects.ProductCreated, payload: eventPayload as any },
       });
 
       return tx.product.findUnique({
         where: { id: product.id },
-        include: { variants: true }
+        include: { variants: true },
       });
     });
   }
 
   static async updateProduct(id: string, data: UpdateProductInput, correlationId?: string) {
     return prisma.$transaction(async (tx) => {
-      
       const { variants, ...productBaseData } = data;
-      
-      const updatedProduct = await tx.product.update({
+
+      await tx.product.update({
         where: { id },
-        data: productBaseData
+        data: productBaseData,
       });
 
       if (variants && variants.length > 0) {
-        const incomingVariantIds = variants.filter(v => v.id).map(v => v.id as string);
+        const incomingVariantIds = variants.filter((v) => v.id).map((v) => v.id as string);
 
         await tx.productVariant.deleteMany({
           where: {
             productId: id,
-            id: { notIn: incomingVariantIds }
-          }
+            id: { notIn: incomingVariantIds },
+          },
         });
 
         for (const variant of variants) {
@@ -100,7 +101,9 @@ export class ProductRepository {
               price: variant.price,
               stock: variant.stock,
               imageUrl: variant.imageUrl,
-              attributes: (variant.attributes ? variant.attributes : Prisma.DbNull) as Prisma.InputJsonValue,
+              attributes: (variant.attributes
+                ? variant.attributes
+                : Prisma.DbNull) as Prisma.InputJsonValue,
             },
             create: {
               productId: id,
@@ -108,8 +111,10 @@ export class ProductRepository {
               price: variant.price,
               stock: variant.stock,
               imageUrl: variant.imageUrl,
-              attributes: (variant.attributes ? variant.attributes : Prisma.DbNull) as Prisma.InputJsonValue,
-            }
+              attributes: (variant.attributes
+                ? variant.attributes
+                : Prisma.DbNull) as Prisma.InputJsonValue,
+            },
           });
         }
       }
@@ -124,7 +129,7 @@ export class ProductRepository {
       };
 
       await tx.outboxEvent.create({
-        data: { subject: Subjects.ProductUpdated, payload: eventPayload as any }
+        data: { subject: Subjects.ProductUpdated, payload: eventPayload as any },
       });
 
       return tx.product.findUnique({ where: { id }, include: { variants: true } });
@@ -136,7 +141,7 @@ export class ProductRepository {
     const skip = (page - 1) * limit;
 
     const whereCondition: Prisma.ProductWhereInput = {
-      status: 'PUBLISHED', 
+      status: 'PUBLISHED',
     };
 
     if (search) {
@@ -153,8 +158,8 @@ export class ProductRepository {
           price: {
             gte: minPrice,
             lte: maxPrice,
-          }
-        }
+          },
+        },
       };
     }
 
@@ -167,11 +172,9 @@ export class ProductRepository {
           category: { select: { name: true, slug: true } },
           variants: true, // Lấy biến thể để hiển thị giá
         },
-        orderBy: sortBy === 'price' 
-          ? { variants: { _count: sortOrder } } 
-          : { [sortBy]: sortOrder },
+        orderBy: sortBy === 'price' ? { variants: { _count: sortOrder } } : { [sortBy]: sortOrder },
       }),
-      prisma.product.count({ where: whereCondition })
+      prisma.product.count({ where: whereCondition }),
     ]);
 
     return {
@@ -180,15 +183,15 @@ export class ProductRepository {
         total: totalCount,
         page,
         limit,
-        totalPages: Math.ceil(totalCount / limit)
-      }
+        totalPages: Math.ceil(totalCount / limit),
+      },
     };
   }
 
   static async getVariantsById(ids: string[]) {
-    return prisma.productVariant.findMany({ 
+    return prisma.productVariant.findMany({
       where: { id: { in: ids } },
-      select: { id: true, price: true }
+      select: { id: true, price: true },
     });
   }
 }

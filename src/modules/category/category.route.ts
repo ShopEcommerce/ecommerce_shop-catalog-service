@@ -20,18 +20,15 @@ router.use(requireAdminMw);
 router.post(
   '/',
   validateZod(createCategorySchema),
-  asyncHandler(CategoryController.createCategory as any)
+  asyncHandler(CategoryController.createCategory as any),
 );
 
 router.put(
   '/:id',
   validateZod(updateCategorySchema),
-  asyncHandler(CategoryController.updateCategory as any)
+  asyncHandler(CategoryController.updateCategory as any),
 );
 
-router.delete(
-  '/:id',
-  asyncHandler(CategoryController.deleteCategory as any)
-);
+router.delete('/:id', asyncHandler(CategoryController.deleteCategory as any));
 
 export { router as categoryRouter };

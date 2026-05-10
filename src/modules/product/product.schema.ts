@@ -14,14 +14,19 @@ export const updateVariantPayload = variantPayload.extend({
 
 export const productBasePayload = z.object({
   name: z.string().min(3, 'Product name must be at least 3 characters long'),
-  slug: z.string().min(3).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must contain only lowercase letters, numbers, and hyphens'),
+  slug: z
+    .string()
+    .min(3)
+    .regex(
+      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+      'Slug must contain only lowercase letters, numbers, and hyphens',
+    ),
   description: z.string().min(10, 'Description is too short').optional(),
   brand: z.string().optional(),
   mainImage: z.string().url('Invalid main image URL').optional(),
   categoryId: z.string().uuid('Invalid category ID'),
   status: z.enum(['DRAFT', 'PUBLISHED', 'HIDDEN', 'ARCHIVED']).default('DRAFT'),
 });
-
 
 export const createProductSchema = z.object({
   body: productBasePayload.extend({
@@ -33,11 +38,14 @@ export const updateProductSchema = z.object({
   params: z.object({
     id: z.string().uuid('Invalid product ID'),
   }),
-  body: productBasePayload.partial().extend({
-    variants: z.array(updateVariantPayload).optional(),
-  }).refine(data => Object.keys(data).length > 0, {
-    message: "At least one field must be provided for update"
-  }),
+  body: productBasePayload
+    .partial()
+    .extend({
+      variants: z.array(updateVariantPayload).optional(),
+    })
+    .refine((data) => Object.keys(data).length > 0, {
+      message: 'At least one field must be provided for update',
+    }),
 });
 
 export const listProductQuerySchema = z.object({
@@ -55,7 +63,9 @@ export const listProductQuerySchema = z.object({
 
 export const validatePricesSchema = z.object({
   body: z.object({
-    variantIds: z.array(z.string().uuid('Invalid Variant ID')).min(1, 'At least one Variant ID is required'),
+    variantIds: z
+      .array(z.string().uuid('Invalid Variant ID'))
+      .min(1, 'At least one Variant ID is required'),
   }),
 });
 

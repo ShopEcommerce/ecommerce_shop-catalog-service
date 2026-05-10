@@ -3,25 +3,36 @@ import { ProductService } from './product.service';
 import { CreateProductInput, UpdateProductInput, ListProductQuery } from './product.schema';
 
 export class ProductController {
-  
-  static async createProduct(req: Request<{}, {}, CreateProductInput>, res: Response) {
-    const sellerId = req.currentUser!.id; 
+  static async createProduct(req: Request<unknown, unknown, CreateProductInput>, res: Response) {
+    const sellerId = req.currentUser!.id;
     const correlationId = req.correlationId;
 
     const product = await ProductService.createProduct(req.body, sellerId, correlationId);
     res.status(201).send({ message: 'Product created successfully', data: product });
   }
 
-  static async updateProduct(req: Request<{ id: string }, {}, UpdateProductInput>, res: Response) {
+  static async updateProduct(
+    req: Request<{ id: string }, unknown, UpdateProductInput>,
+    res: Response,
+  ) {
     const sellerId = req.currentUser!.id;
     const role = req.currentUser!.role;
     const correlationId = req.correlationId;
 
-    const product = await ProductService.updateProduct(req.params.id, req.body, sellerId, role, correlationId);
+    const product = await ProductService.updateProduct(
+      req.params.id,
+      req.body,
+      sellerId,
+      role,
+      correlationId,
+    );
     res.status(200).send({ message: 'Product updated successfully', data: product });
   }
 
-  static async getProducts(req: Request<{}, {}, {}, ListProductQuery>, res: Response) {
+  static async getProducts(
+    req: Request<unknown, unknown, unknown, ListProductQuery>,
+    res: Response,
+  ) {
     const result = await ProductService.getProducts(req.query);
     res.status(200).send(result);
   }
@@ -40,9 +51,12 @@ export class ProductController {
     res.status(200).send({ message: 'Product archived successfully' });
   }
 
-  static async validatePrices(req: Request<{}, {}, { variantIds: string[] }>, res: Response) {
+  static async validatePrices(
+    req: Request<unknown, unknown, { variantIds: string[] }>,
+    res: Response,
+  ) {
     const { variantIds } = req.body;
-        
+
     const priceMap = await ProductService.validatePrices(variantIds);
     res.status(200).send(priceMap);
   }

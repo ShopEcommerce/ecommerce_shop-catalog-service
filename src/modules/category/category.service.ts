@@ -3,7 +3,6 @@ import { BadRequestError, NotFoundError } from '@teleshop/common';
 import { CreateCategoryInput, UpdateCategoryInput } from './category.schema';
 
 export class CategoryService {
-  
   static async createCategory(data: CreateCategoryInput) {
     // Check if the slug is unique
     const existingCategory = await CategoryRepository.findBySlug(data.slug);
@@ -64,14 +63,14 @@ export class CategoryService {
     const hasChildren = await CategoryRepository.hasChildren(id);
     if (hasChildren) {
       throw new BadRequestError(
-        'Cannot delete category. This category contains child categories. Please delete or move child categories first.'
+        'Cannot delete category. This category contains child categories. Please delete or move child categories first.',
       );
     }
 
     const hasProducts = await CategoryRepository.hasProducts(id);
     if (hasProducts) {
       throw new BadRequestError(
-        'Cannot delete category. This category contains products. Please delete or move products first.'
+        'Cannot delete category. This category contains products. Please delete or move products first.',
       );
     }
 

@@ -11,13 +11,16 @@ export class OrderCreatedListener extends BaseListener<any> {
   subject: any = 'OrderCreated';
   queueGroupName = QueueGroupNames.CatalogService;
 
-  async onMessage(data: any, msg: Message) {
+  async onMessage(data: any, _msg: Message) {
     const eventId = data.eventId;
     const correlationId = data.correlationId || 'N/A';
     const orderId = data.orderId;
     const items = data.items;
 
-    logger.info({ correlationId, eventId, orderId }, 'Catalog received request: Check and reduce inventory');
+    logger.info(
+      { correlationId, eventId, orderId },
+      'Catalog received request: Check and reduce inventory',
+    );
 
     try {
       if (await InboxRepository.isEventProcessed(eventId)) {
@@ -26,20 +29,21 @@ export class OrderCreatedListener extends BaseListener<any> {
       }
 
       await prisma.$transaction(async (tx) => {
-        
         for (const item of items) {
           const result = await tx.productVariant.updateMany({
-            where: { 
+            where: {
               id: item.variantId,
-              stock: { gte: item.quantity } 
+              stock: { gte: item.quantity },
             },
             data: {
-              stock: { decrement: item.quantity } 
-            }
+              stock: { decrement: item.quantity },
+            },
           });
 
           if (result.count === 0) {
-            throw new Error(`Product (Variant: ${item.variantId}) is out of stock or does not have sufficient quantity.`);
+            throw new Error(
+              `Product (Variant: ${item.variantId}) is out of stock or does not have sufficient quantity.`,
+            );
           }
         }
 
@@ -50,16 +54,18 @@ export class OrderCreatedListener extends BaseListener<any> {
           type: Subjects.InventoryReserved,
           occurredAt: new Date().toISOString(),
           correlationId,
-          orderId
+          orderId,
         };
 
         await tx.outboxEvent.create({
-          data: { subject: Subjects.InventoryReserved, payload: outboxPayload as any }
+          data: { subject: Subjects.InventoryReserved, payload: outboxPayload as any },
         });
 
-        logger.info({ correlationId, orderId }, 'Inventory reduction SUCCESSFUL. Event InventoryReserved has been written to Outbox.');
+        logger.info(
+          { correlationId, orderId },
+          'Inventory reduction SUCCESSFUL. Event InventoryReserved has been written to Outbox.',
+        );
       });
-
     } catch (error: any) {
       logger.warn({ correlationId, orderId, reason: error.message }, 'Inventory reduction FAILED.');
 
@@ -72,15 +78,18 @@ export class OrderCreatedListener extends BaseListener<any> {
           occurredAt: new Date().toISOString(),
           correlationId,
           orderId,
-          reason: error.message
+          reason: error.message,
         };
 
         await tx.outboxEvent.create({
-          data: { subject: Subjects.InventoryFailed, payload: failedPayload as any }
+          data: { subject: Subjects.InventoryFailed, payload: failedPayload as any },
         });
       });
-      
-      logger.info({ correlationId, orderId }, 'Inventory reduction FAILED. Sent InventoryFailed response to Order Service.');
+
+      logger.info(
+        { correlationId, orderId },
+        'Inventory reduction FAILED. Sent InventoryFailed response to Order Service.',
+      );
     }
   }
 }

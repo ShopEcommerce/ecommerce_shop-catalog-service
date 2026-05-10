@@ -8,7 +8,7 @@ import pino from 'pino';
 const logger = pino({ name: 'Catalog-OrderCreatedListener' });
 
 export class OrderCreatedListener extends BaseListener<any> {
-  subject: any = 'OrderCreated';
+  readonly subject = Subjects.OrderCreated;
   queueGroupName = QueueGroupNames.CatalogService;
 
   async onMessage(data: any, _msg: Message) {
@@ -53,8 +53,9 @@ export class OrderCreatedListener extends BaseListener<any> {
           eventId: crypto.randomUUID(),
           type: Subjects.InventoryReserved,
           occurredAt: new Date().toISOString(),
-          correlationId,
-          orderId,
+          version: 1,
+          correlationId: data.correlationId,
+          orderId: data.orderId,
         };
 
         await tx.outboxEvent.create({
@@ -77,6 +78,7 @@ export class OrderCreatedListener extends BaseListener<any> {
           type: Subjects.InventoryFailed,
           occurredAt: new Date().toISOString(),
           correlationId,
+          version: 1,
           orderId,
           reason: error.message,
         };

@@ -12,10 +12,16 @@ class DynamicPublisher extends BasePublisher<any> {
   }
 }
 
+let isProcessing = false;
+
 export const startOutboxWorker = () => {
   logger.info('[Catalog Outbox Worker] Started watching for pending events...');
 
   setInterval(async () => {
+    if (isProcessing) return;
+
+    isProcessing = true;
+
     try {
       const events = await OutboxRepository.getPendingEvents();
       if (events.length === 0) return;
@@ -37,6 +43,8 @@ export const startOutboxWorker = () => {
       }
     } catch (err) {
       logger.error({ err }, '[Catalog Outbox Worker] Error querying Database');
+    } finally {
+      isProcessing = false;
     }
   }, 3000);
 };

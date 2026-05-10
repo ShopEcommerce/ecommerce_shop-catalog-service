@@ -194,4 +194,54 @@ export class ProductRepository {
       select: { id: true, price: true },
     });
   }
+
+  static async findSellerProducts(sellerId: string, query: ListProductQuery) {
+    const { page, limit, search, categoryId, sortBy, sortOrder } = query;
+    const currentPage = page || 1;
+    const currentLimit = limit || 10;
+    const skip = (currentPage - 1) * currentLimit;
+
+    const whereCondition: Prisma.ProductWhereInput = {
+      sellerId: sellerId,
+    };
+
+    if (search) {
+      whereCondition.name = { contains: search, mode: 'insensitive' };
+    }
+
+    if (categoryId) {
+      whereCondition.categoryId = categoryId;
+    }
+
+    let orderByCondition: Prisma.ProductOrderByWithRelationInput = {};
+    if (sortBy === 'price') {
+      orderByCondition = { createdAt: sortOrder };
+    } else {
+      orderByCondition = { [sortBy || 'createdAt']: sortOrder || 'desc' };
+    }
+
+    const [products, totalCount] = await Promise.all([
+      prisma.product.findMany({
+        where: whereCondition,
+        skip,
+        take: currentLimit,
+        include: {
+          category: { select: { name: true, slug: true } },
+          variants: true,
+        },
+        orderBy: orderByCondition,
+      }),
+      prisma.product.count({ where: whereCondition }),
+    ]);
+
+    return {
+      products,
+      meta: {
+        total: totalCount,
+        page: currentPage,
+        limit: currentLimit,
+        totalPages: Math.ceil(totalCount / currentLimit),
+      },
+    };
+  }
 }

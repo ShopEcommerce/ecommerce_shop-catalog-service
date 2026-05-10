@@ -124,4 +124,27 @@ export class ProductService {
 
     return priceMap;
   }
+
+  static async getSellerProducts(sellerId: string, query: ListProductQuery) {
+    return ProductRepository.findSellerProducts(sellerId, query);
+  }
+
+  static async changeProductStatus(
+    id: string,
+    status: string,
+    sellerId: string,
+    role: string,
+    correlationId?: string,
+  ) {
+    const product = await ProductRepository.findById(id);
+    if (!product) {
+      throw new NotFoundError('Product not found');
+    }
+
+    if (product.sellerId !== sellerId && role !== 'ADMIN') {
+      throw new ForbiddenError('You do not have permission to change this product status');
+    }
+
+    return ProductRepository.updateProduct(id, { status } as any, correlationId);
+  }
 }

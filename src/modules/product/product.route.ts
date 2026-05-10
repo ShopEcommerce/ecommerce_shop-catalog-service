@@ -51,4 +51,18 @@ router.put(
 
 router.delete('/:id', asyncHandler(ProductController.archiveProduct as any));
 
+router.get(
+  '/seller/me',
+  requireAuthMw,
+  requireSellerMw,
+  asyncHandler(ProductController.getMyProducts as any),
+);
+
+router.patch(
+  '/:id/status',
+  requireAuthMw,
+  requireSellerMw,
+  asyncHandler(ProductController.updateStatus as any),
+);
+
 export { router as productRouter };

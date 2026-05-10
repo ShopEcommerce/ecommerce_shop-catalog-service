@@ -60,4 +60,33 @@ export class ProductController {
     const priceMap = await ProductService.validatePrices(variantIds);
     res.status(200).send(priceMap);
   }
+
+  static async getMyProducts(
+    req: Request<unknown, unknown, unknown, ListProductQuery>,
+    res: Response,
+  ) {
+    const sellerId = req.currentUser!.id;
+    const products = await ProductService.getSellerProducts(sellerId, req.query);
+    res.status(200).send({ data: products });
+  }
+
+  static async updateStatus(
+    req: Request<{ id: string }, unknown, { status: string }>,
+    res: Response,
+  ) {
+    const { id } = req.params;
+    const { status } = req.body;
+    const sellerId = req.currentUser!.id;
+    const role = req.currentUser!.role;
+
+    const updatedProduct = await ProductService.changeProductStatus(
+      id,
+      status,
+      sellerId,
+      role,
+      req.correlationId,
+    );
+
+    res.status(200).send({ message: 'Status updated successfully', data: updatedProduct });
+  }
 }

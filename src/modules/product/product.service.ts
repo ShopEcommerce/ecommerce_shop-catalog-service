@@ -2,32 +2,30 @@ import { ProductRepository } from './product.repository';
 import { CategoryRepository } from '../category/category.repository';
 import { BadRequestError, NotFoundError, ForbiddenError } from '@teleshop/common';
 import { CreateProductInput, UpdateProductInput, ListProductQuery } from './product.schema';
+import { CatalogMessages } from '../../helpers/messages';
 
 export class ProductService {
   static async createProduct(data: CreateProductInput, sellerId: string, correlationId?: string) {
     const category = await CategoryRepository.findById(data.categoryId);
     if (!category) {
-      throw new NotFoundError('Category not found');
+      throw new NotFoundError(CatalogMessages.MSG_43.message);
     }
 
     const existingSlug = await ProductRepository.findBySlug(data.slug);
     if (existingSlug) {
-      throw new BadRequestError('Product slug already exists. Please choose a different slug.');
+      throw new BadRequestError(CatalogMessages.MSG_32.message);
     }
 
     const incomingSkus = data.variants.map((v) => v.sku);
 
     const uniqueSkus = new Set(incomingSkus);
     if (uniqueSkus.size !== incomingSkus.length) {
-      throw new BadRequestError(
-        'SKU values in the variants array must be unique. Please remove duplicates.',
-      );
+      throw new BadRequestError(CatalogMessages.MSG_49.message);
     }
 
     const duplicatedSkus = await ProductRepository.findExistingSkus(incomingSkus);
     if (duplicatedSkus.length > 0) {
-      const dupList = duplicatedSkus.map((s) => s.sku).join(', ');
-      throw new BadRequestError(`The following SKU values already exist in the system: ${dupList}`);
+      throw new BadRequestError(CatalogMessages.MSG_48.message);
     }
 
     return ProductRepository.createProductWithVariants(data, sellerId, correlationId);
@@ -42,25 +40,25 @@ export class ProductService {
   ) {
     const product = await ProductRepository.findById(id);
     if (!product) {
-      throw new NotFoundError('Product not found');
+      throw new NotFoundError(CatalogMessages.MSG_42.message);
     }
 
     // Check permission: Only the seller who owns the product
     if (product.sellerId !== sellerId && role !== 'ADMIN') {
-      throw new ForbiddenError('You do not have permission to edit this product');
+      throw new ForbiddenError(CatalogMessages.MSG_44.message);
     }
 
     if (data.slug && data.slug !== product.slug) {
       const existingSlug = await ProductRepository.findBySlug(data.slug);
       if (existingSlug) {
-        throw new BadRequestError('Product slug already exists. Please choose a different slug.');
+        throw new BadRequestError(CatalogMessages.MSG_32.message);
       }
     }
 
     if (data.categoryId && data.categoryId !== product.categoryId) {
       const category = await CategoryRepository.findById(data.categoryId);
       if (!category) {
-        throw new NotFoundError('New category not found');
+        throw new NotFoundError(CatalogMessages.MSG_47.message);
       }
     }
 
@@ -69,17 +67,12 @@ export class ProductService {
 
       const uniqueSkus = new Set(incomingSkus);
       if (uniqueSkus.size !== incomingSkus.length) {
-        throw new BadRequestError(
-          'SKU values in the variants array must be unique. Please remove duplicates.',
-        );
+        throw new BadRequestError(CatalogMessages.MSG_49.message);
       }
 
       const duplicatedSkus = await ProductRepository.findExistingSkus(incomingSkus, id);
       if (duplicatedSkus.length > 0) {
-        const dupList = duplicatedSkus.map((s) => s.sku).join(', ');
-        throw new BadRequestError(
-          `The following SKU values already exist in the system: ${dupList}`,
-        );
+        throw new BadRequestError(CatalogMessages.MSG_48.message);
       }
     }
 
@@ -94,7 +87,7 @@ export class ProductService {
       : await ProductRepository.findBySlug(idOrSlug);
 
     if (!product) {
-      throw new NotFoundError('Product not found');
+      throw new NotFoundError(CatalogMessages.MSG_42.message);
     }
     return product;
   }
@@ -105,10 +98,10 @@ export class ProductService {
 
   static async archiveProduct(id: string, sellerId: string, role: string, correlationId?: string) {
     const product = await ProductRepository.findById(id);
-    if (!product) throw new NotFoundError('Product not found');
+    if (!product) throw new NotFoundError(CatalogMessages.MSG_42.message);
 
     if (product.sellerId !== sellerId && role !== 'ADMIN') {
-      throw new ForbiddenError('You do not have permission to archive this product');
+      throw new ForbiddenError(CatalogMessages.MSG_44.message);
     }
 
     return ProductRepository.updateProduct(id, { status: 'ARCHIVED' } as any, correlationId);
@@ -138,11 +131,11 @@ export class ProductService {
   ) {
     const product = await ProductRepository.findById(id);
     if (!product) {
-      throw new NotFoundError('Product not found');
+      throw new NotFoundError(CatalogMessages.MSG_42.message);
     }
 
     if (product.sellerId !== sellerId && role !== 'ADMIN') {
-      throw new ForbiddenError('You do not have permission to change this product status');
+      throw new ForbiddenError(CatalogMessages.MSG_44.message);
     }
 
     return ProductRepository.updateProduct(id, { status } as any, correlationId);

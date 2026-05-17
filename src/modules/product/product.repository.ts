@@ -139,7 +139,7 @@ export class ProductRepository {
 
   static async findProducts(query: ListProductQuery) {
     const { page, limit, search, categoryId, minPrice, maxPrice, sortBy, sortOrder } = query;
-    const skip = (page - 1) * limit;
+    const skip = (Number(page) - 1) * Number(limit);
 
     const whereCondition: Prisma.ProductWhereInput = {
       status: 'PUBLISHED',
@@ -175,7 +175,7 @@ export class ProductRepository {
       prisma.product.findMany({
         where: whereCondition,
         skip,
-        take: limit,
+        take: Number(limit),
         include: {
           category: { select: { name: true, slug: true } },
           variants: true,
@@ -204,9 +204,13 @@ export class ProductRepository {
   }
 
   static async findSellerProducts(sellerId: string, query: ListProductQuery) {
+    // NOTE: This method returns ALL products for a seller regardless of status.
+    // This is intentional - sellers need to see DRAFT, PUBLISHED, HIDDEN, and ARCHIVED products
+    // to manage their complete inventory. Use getSellerProducts in product service for business logic.
+
     const { page, limit, search, categoryId, sortBy, sortOrder } = query;
-    const currentPage = page || 1;
-    const currentLimit = limit || 10;
+    const currentPage = Number(page) || 1;
+    const currentLimit = Number(limit) || 10;
     const skip = (currentPage - 1) * currentLimit;
 
     const whereCondition: Prisma.ProductWhereInput = {

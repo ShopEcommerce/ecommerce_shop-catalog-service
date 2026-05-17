@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { ProductService } from './product.service';
 import { CreateProductInput, UpdateProductInput, ListProductQuery } from './product.schema';
+import { CatalogMessages } from '../../helpers/messages';
 
 export class ProductController {
   static async createProduct(req: Request<unknown, unknown, CreateProductInput>, res: Response) {
@@ -8,7 +9,7 @@ export class ProductController {
     const correlationId = req.correlationId;
 
     const product = await ProductService.createProduct(req.body, sellerId, correlationId);
-    res.status(201).send({ message: 'Product created successfully', data: product });
+    res.status(201).json(CatalogMessages.buildSuccessResponse(CatalogMessages.MSG_28, product));
   }
 
   static async updateProduct(
@@ -26,7 +27,7 @@ export class ProductController {
       role,
       correlationId,
     );
-    res.status(200).send({ message: 'Product updated successfully', data: product });
+    res.status(200).json(CatalogMessages.buildSuccessResponse(CatalogMessages.MSG_29, product));
   }
 
   static async getProducts(
@@ -48,7 +49,7 @@ export class ProductController {
     const correlationId = req.correlationId;
 
     await ProductService.archiveProduct(req.params.id, sellerId, role, correlationId);
-    res.status(200).send({ message: 'Product archived successfully' });
+    res.status(200).json(CatalogMessages.buildSuccessResponse(CatalogMessages.MSG_30));
   }
 
   static async validatePrices(

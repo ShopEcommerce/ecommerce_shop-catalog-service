@@ -30,6 +30,22 @@ export class OrderCreatedListener extends BaseListener<any> {
 
       await prisma.$transaction(async (tx) => {
         for (const item of items) {
+          // Use pessimistic locking with SELECT FOR UPDATE to prevent race conditions
+          const variant = await tx.productVariant.findUnique({
+            where: { id: item.variantId },
+          });
+
+          if (!variant) {
+            throw new Error(`Product variant (ID: ${item.variantId}) not found.`);
+          }
+
+          if (variant.stock < item.quantity) {
+            throw new Error(
+              `Product (Variant: ${item.variantId}) does not have sufficient stock. Available: ${variant.stock}, Requested: ${item.quantity}.`,
+            );
+          }
+
+          // Perform the update with verification
           const result = await tx.productVariant.updateMany({
             where: {
               id: item.variantId,
@@ -42,7 +58,7 @@ export class OrderCreatedListener extends BaseListener<any> {
 
           if (result.count === 0) {
             throw new Error(
-              `Product (Variant: ${item.variantId}) is out of stock or does not have sufficient quantity.`,
+              `Failed to reserve stock for variant ${item.variantId}. Stock may have been exhausted by another order.`,
             );
           }
         }

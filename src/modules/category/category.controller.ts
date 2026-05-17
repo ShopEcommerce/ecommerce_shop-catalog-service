@@ -1,11 +1,12 @@
 import { Request, Response } from 'express';
 import { CategoryService } from './category.service';
 import { CreateCategoryInput, UpdateCategoryInput } from './category.schema';
+import { CatalogMessages } from '../../helpers/messages';
 
 export class CategoryController {
   static async createCategory(req: Request<unknown, unknown, CreateCategoryInput>, res: Response) {
     const category = await CategoryService.createCategory(req.body);
-    res.status(201).send({ message: 'Category created successfully', data: category });
+    res.status(201).json(CatalogMessages.buildSuccessResponse(CatalogMessages.MSG_34, category));
   }
 
   static async getCategories(req: Request, res: Response) {
@@ -23,11 +24,11 @@ export class CategoryController {
     res: Response,
   ) {
     const category = await CategoryService.updateCategory(req.params.id, req.body);
-    res.status(200).send({ message: 'Category updated successfully', data: category });
+    res.status(200).json(CatalogMessages.buildSuccessResponse(CatalogMessages.MSG_35, category));
   }
 
   static async deleteCategory(req: Request<{ id: string }>, res: Response) {
     await CategoryService.deleteCategory(req.params.id);
-    res.status(200).send({ message: 'Category deleted successfully' });
+    res.status(200).json(CatalogMessages.buildSuccessResponse(CatalogMessages.MSG_36));
   }
 }

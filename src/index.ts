@@ -4,6 +4,7 @@ import { rabbitmqWrapper } from '@teleshop/common';
 import { startOutboxWorker } from './workers/outbox.worker';
 import pino from 'pino';
 import { OrderCreatedListener } from './events/listeners/order-created-listener';
+import { OrderCancelledListener } from './events/listeners/order-cancelled-listener';
 import { ReviewDeletedListener } from './events/listeners/review-deleted-listener';
 import { ReviewCreatedListener } from './events/listeners/review-created-listener';
 
@@ -30,6 +31,7 @@ const start = async () => {
     process.on('SIGTERM', () => rabbitmqWrapper.close());
 
     new OrderCreatedListener(rabbitmqWrapper.channel).listen();
+    new OrderCancelledListener(rabbitmqWrapper.channel).listen();
     new ReviewCreatedListener(rabbitmqWrapper.channel).listen();
     new ReviewDeletedListener(rabbitmqWrapper.channel).listen();
 

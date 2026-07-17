@@ -1,8 +1,39 @@
 import { prisma } from '../../db/prisma';
 import { Prisma } from '@prisma/client';
 import crypto from 'crypto';
-import { Subjects } from '@teleshop/common';
+import { DomainEvent, Subjects } from '@teleshop/common';
 import { CreateProductInput, UpdateProductInput, ListProductQuery } from './product.schema';
+
+type ProductCreatedEventData = Extract<DomainEvent, { subject: Subjects.ProductCreated }>['data'];
+type ProductUpdatedEventData = Extract<DomainEvent, { subject: Subjects.ProductUpdated }>['data'];
+
+const getMinVariantPrice = (variants: Array<{ price: Prisma.Decimal | number | string }>) => {
+  if (variants.length === 0) return Number.POSITIVE_INFINITY;
+  return Math.min(...variants.map((variant) => Number(variant.price)));
+};
+
+const sortProductsByPrice = <
+  T extends {
+    variants: Array<{ price: Prisma.Decimal | number | string }>;
+    createdAt: Date;
+  },
+>(
+  products: T[],
+  sortOrder: 'asc' | 'desc',
+) => {
+  return [...products].sort((left, right) => {
+    const leftPrice = getMinVariantPrice(left.variants);
+    const rightPrice = getMinVariantPrice(right.variants);
+
+    if (leftPrice === rightPrice) {
+      return sortOrder === 'asc'
+        ? left.createdAt.getTime() - right.createdAt.getTime()
+        : right.createdAt.getTime() - left.createdAt.getTime();
+    }
+
+    return sortOrder === 'asc' ? leftPrice - rightPrice : rightPrice - leftPrice;
+  });
+};
 
 export class ProductRepository {
   static async findById(id: string) {
@@ -52,8 +83,8 @@ export class ProductRepository {
       }));
       await tx.productVariant.createMany({ data: variantsData });
 
-      const eventPayload = {
-        eventId: crypto.randomUUID(),
+      const eventPayload: ProductCreatedEventData = {
+        id: crypto.randomUUID(),
         type: Subjects.ProductCreated,
         occurredAt: new Date().toISOString(),
         version: 1,
@@ -120,8 +151,8 @@ export class ProductRepository {
         }
       }
 
-      const eventPayload = {
-        eventId: crypto.randomUUID(),
+      const eventPayload: ProductUpdatedEventData = {
+        id: crypto.randomUUID(),
         type: Subjects.ProductUpdated,
         occurredAt: new Date().toISOString(),
         version: 1,
@@ -139,7 +170,9 @@ export class ProductRepository {
 
   static async findProducts(query: ListProductQuery) {
     const { page, limit, search, categoryId, minPrice, maxPrice, sortBy, sortOrder } = query;
-    const skip = (Number(page) - 1) * Number(limit);
+    const currentPage = Number(page) || 1;
+    const currentLimit = Number(limit) || 10;
+    const skip = (currentPage - 1) * currentLimit;
 
     const whereCondition: Prisma.ProductWhereInput = {
       status: 'PUBLISHED',
@@ -164,34 +197,39 @@ export class ProductRepository {
       };
     }
 
-    let orderByCondition: Prisma.ProductOrderByWithRelationInput = {};
-    if (sortBy === 'price') {
-      orderByCondition = { createdAt: sortOrder };
-    } else {
-      orderByCondition = { [sortBy || 'createdAt']: sortOrder || 'desc' };
-    }
+    const totalCount = await prisma.product.count({ where: whereCondition });
 
-    const [products, totalCount] = await Promise.all([
-      prisma.product.findMany({
-        where: whereCondition,
+    const baseQuery = {
+      where: whereCondition,
+      include: {
+        category: { select: { name: true, slug: true } },
+        variants: true,
+      },
+    } satisfies Prisma.ProductFindManyArgs;
+
+    let products;
+    if (sortBy === 'price') {
+      const allProducts = await prisma.product.findMany({
+        ...baseQuery,
+        orderBy: { createdAt: 'desc' },
+      });
+      products = sortProductsByPrice(allProducts, sortOrder).slice(skip, skip + currentLimit);
+    } else {
+      products = await prisma.product.findMany({
+        ...baseQuery,
         skip,
-        take: Number(limit),
-        include: {
-          category: { select: { name: true, slug: true } },
-          variants: true,
-        },
-        orderBy: orderByCondition,
-      }),
-      prisma.product.count({ where: whereCondition }),
-    ]);
+        take: currentLimit,
+        orderBy: { [sortBy || 'createdAt']: sortOrder || 'desc' },
+      });
+    }
 
     return {
       products,
       meta: {
         total: totalCount,
-        page,
-        limit,
-        totalPages: Math.ceil(totalCount / limit),
+        page: currentPage,
+        limit: currentLimit,
+        totalPages: Math.ceil(totalCount / currentLimit),
       },
     };
   }
@@ -225,26 +263,31 @@ export class ProductRepository {
       whereCondition.categoryId = categoryId;
     }
 
-    let orderByCondition: Prisma.ProductOrderByWithRelationInput = {};
-    if (sortBy === 'price') {
-      orderByCondition = { createdAt: sortOrder };
-    } else {
-      orderByCondition = { [sortBy || 'createdAt']: sortOrder || 'desc' };
-    }
+    const totalCount = await prisma.product.count({ where: whereCondition });
 
-    const [products, totalCount] = await Promise.all([
-      prisma.product.findMany({
-        where: whereCondition,
+    const baseQuery = {
+      where: whereCondition,
+      include: {
+        category: { select: { name: true, slug: true } },
+        variants: true,
+      },
+    } satisfies Prisma.ProductFindManyArgs;
+
+    let products;
+    if (sortBy === 'price') {
+      const allProducts = await prisma.product.findMany({
+        ...baseQuery,
+        orderBy: { createdAt: 'desc' },
+      });
+      products = sortProductsByPrice(allProducts, sortOrder).slice(skip, skip + currentLimit);
+    } else {
+      products = await prisma.product.findMany({
+        ...baseQuery,
         skip,
         take: currentLimit,
-        include: {
-          category: { select: { name: true, slug: true } },
-          variants: true,
-        },
-        orderBy: orderByCondition,
-      }),
-      prisma.product.count({ where: whereCondition }),
-    ]);
+        orderBy: { [sortBy || 'createdAt']: sortOrder || 'desc' },
+      });
+    }
 
     return {
       products,

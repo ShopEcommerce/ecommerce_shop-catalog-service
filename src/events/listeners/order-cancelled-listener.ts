@@ -1,18 +1,25 @@
 import { Message } from 'amqplib';
-import { BaseListener, QueueGroupNames, Subjects } from '@teleshop/common';
+import { BaseListener, DomainEvent, QueueGroupNames, Subjects } from '@teleshop/common';
 import { prisma } from '../../db/prisma';
 import { InboxRepository } from '../../modules/inbox/inbox.repository';
 import pino from 'pino';
 
 const logger = pino({ name: 'Catalog-OrderCancelledListener' });
 
-export class OrderCancelledListener extends BaseListener<any> {
+type OrderCancelledEvent = Extract<DomainEvent, { subject: Subjects.OrderCancelled }>;
+
+export class OrderCancelledListener extends BaseListener<OrderCancelledEvent> {
   readonly subject = Subjects.OrderCancelled;
   queueGroupName = QueueGroupNames.CatalogService;
 
-  async onMessage(data: any, _msg: Message) {
-    const { eventId, orderId, items } = data;
+  async onMessage(data: OrderCancelledEvent['data'], _msg: Message) {
+    const eventId = data.id || (data as OrderCancelledEvent['data'] & { eventId?: string }).eventId;
+    const { orderId, items } = data;
     const correlationId = data.correlationId || 'N/A';
+
+    if (!eventId || !orderId) {
+      throw new Error('Invalid OrderCancelled payload: missing event identifier or orderId');
+    }
 
     logger.info(
       { correlationId, orderId },

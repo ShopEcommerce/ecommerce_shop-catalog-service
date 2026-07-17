@@ -1,19 +1,25 @@
 import { Message } from 'amqplib';
-import { BaseListener, QueueGroupNames, Subjects } from '@teleshop/common';
+import { BaseListener, DomainEvent, QueueGroupNames, Subjects } from '@teleshop/common';
 import { prisma } from '../../db/prisma';
 import { InboxRepository } from '../../modules/inbox/inbox.repository';
 import pino from 'pino';
 
 const logger = pino({ name: 'Catalog-ReviewDeletedListener' });
 
-export class ReviewDeletedListener extends BaseListener<any> {
+type ReviewDeletedEvent = Extract<DomainEvent, { subject: Subjects.ReviewDeleted }>;
+
+export class ReviewDeletedListener extends BaseListener<ReviewDeletedEvent> {
   readonly subject = Subjects.ReviewDeleted;
   queueGroupName = QueueGroupNames.CatalogService;
 
-  async onMessage(data: any, _msg: Message) {
-    // Note: Review Service when deleting must include the old `rating` in the payload
-    const { eventId, productId, rating } = data;
+  async onMessage(data: ReviewDeletedEvent['data'], _msg: Message) {
+    const eventId = data.id || (data as ReviewDeletedEvent['data'] & { eventId?: string }).eventId;
+    const { productId, rating } = data;
     const correlationId = data.correlationId || 'N/A';
+
+    if (!eventId || !productId) {
+      throw new Error('Invalid ReviewDeleted payload: missing event identifier or productId');
+    }
 
     logger.info(
       { correlationId, eventId, productId },
@@ -31,9 +37,8 @@ export class ReviewDeletedListener extends BaseListener<any> {
         if (!product) throw new Error('Product not found');
 
         const currentTotalScore = product.ratingAverage * product.reviewCount;
-        const newReviewCount = product.reviewCount - 1;
+        const newReviewCount = Math.max(product.reviewCount - 1, 0);
 
-        // Handle division by zero if this is the only review being deleted
         let newRatingAverage = 0;
         if (newReviewCount > 0) {
           const rawNewAverage = (currentTotalScore - rating) / newReviewCount;

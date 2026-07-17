@@ -1,6 +1,11 @@
 import { Request, Response } from 'express';
 import { ProductService } from './product.service';
-import { CreateProductInput, UpdateProductInput, ListProductQuery } from './product.schema';
+import {
+  CreateProductInput,
+  UpdateProductInput,
+  ListProductQuery,
+  UpdateProductStatusInput,
+} from './product.schema';
 import { CatalogMessages } from '../../helpers/messages';
 
 export class ProductController {
@@ -72,7 +77,7 @@ export class ProductController {
   }
 
   static async updateStatus(
-    req: Request<{ id: string }, unknown, { status: string }>,
+    req: Request<{ id: string }, unknown, UpdateProductStatusInput>,
     res: Response,
   ) {
     const { id } = req.params;

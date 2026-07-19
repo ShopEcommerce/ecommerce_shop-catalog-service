@@ -1,25 +1,35 @@
+import crypto from 'crypto';
 import { Message } from 'amqplib';
-import { BaseListener, QueueGroupNames, Subjects } from '@teleshop/common';
+import { BaseListener, DomainEvent, QueueGroupNames, Subjects } from '@teleshop/common';
 import { prisma } from '../../db/prisma';
 import { InboxRepository } from '../../modules/inbox/inbox.repository';
-import crypto from 'crypto';
 import pino from 'pino';
 
 const logger = pino({ name: 'Catalog-OrderCreatedListener' });
 
-export class OrderCreatedListener extends BaseListener<any> {
+type OrderCreatedEvent = Extract<DomainEvent, { subject: Subjects.OrderCreated }>;
+type InventoryReservedEventData = Extract<
+  DomainEvent,
+  { subject: Subjects.InventoryReserved }
+>['data'];
+type InventoryFailedEventData = Extract<DomainEvent, { subject: Subjects.InventoryFailed }>['data'];
+
+export class OrderCreatedListener extends BaseListener<OrderCreatedEvent> {
   readonly subject = Subjects.OrderCreated;
   queueGroupName = QueueGroupNames.CatalogService;
 
-  async onMessage(data: any, _msg: Message) {
-    const eventId = data.eventId;
+  async onMessage(data: OrderCreatedEvent['data'], _msg: Message) {
+    const eventId = data.id || (data as OrderCreatedEvent['data'] & { eventId?: string }).eventId;
     const correlationId = data.correlationId || 'N/A';
-    const orderId = data.orderId;
-    const items = data.items;
+    const { orderId, items } = data;
+
+    if (!eventId || !orderId || !items) {
+      throw new Error('Invalid OrderCreated payload: missing event identifier, orderId, or items');
+    }
 
     logger.info(
       { correlationId, eventId, orderId },
-      'Catalog received request: Check and reduce inventory',
+      'Catalog received request: check and reserve inventory',
     );
 
     try {
@@ -30,7 +40,6 @@ export class OrderCreatedListener extends BaseListener<any> {
 
       await prisma.$transaction(async (tx) => {
         for (const item of items) {
-          // Use pessimistic locking with SELECT FOR UPDATE to prevent race conditions
           const variant = await tx.productVariant.findUnique({
             where: { id: item.variantId },
           });
@@ -45,7 +54,6 @@ export class OrderCreatedListener extends BaseListener<any> {
             );
           }
 
-          // Perform the update with verification
           const result = await tx.productVariant.updateMany({
             where: {
               id: item.variantId,
@@ -65,8 +73,8 @@ export class OrderCreatedListener extends BaseListener<any> {
 
         await InboxRepository.markAsProcessed(eventId, this.subject, tx);
 
-        const outboxPayload = {
-          eventId: crypto.randomUUID(),
+        const outboxPayload: InventoryReservedEventData = {
+          id: crypto.randomUUID(),
           type: Subjects.InventoryReserved,
           occurredAt: new Date().toISOString(),
           version: 1,
@@ -80,17 +88,17 @@ export class OrderCreatedListener extends BaseListener<any> {
 
         logger.info(
           { correlationId, orderId },
-          'Inventory reduction SUCCESSFUL. Event InventoryReserved has been written to Outbox.',
+          'Inventory reduction successful. InventoryReserved has been written to outbox.',
         );
       });
     } catch (error: any) {
-      logger.warn({ correlationId, orderId, reason: error.message }, 'Inventory reduction FAILED.');
+      logger.warn({ correlationId, orderId, reason: error.message }, 'Inventory reduction failed.');
 
       await prisma.$transaction(async (tx) => {
         await InboxRepository.markAsProcessed(eventId, this.subject, tx);
 
-        const failedPayload = {
-          eventId: crypto.randomUUID(),
+        const failedPayload: InventoryFailedEventData = {
+          id: crypto.randomUUID(),
           type: Subjects.InventoryFailed,
           occurredAt: new Date().toISOString(),
           correlationId,
@@ -106,7 +114,7 @@ export class OrderCreatedListener extends BaseListener<any> {
 
       logger.info(
         { correlationId, orderId },
-        'Inventory reduction FAILED. Sent InventoryFailed response to Order Service.',
+        'Inventory reduction failed. Sent InventoryFailed response to Order Service.',
       );
     }
   }

@@ -1,18 +1,25 @@
 import { Message } from 'amqplib';
-import { BaseListener, QueueGroupNames, Subjects } from '@teleshop/common';
+import { BaseListener, DomainEvent, QueueGroupNames, Subjects } from '@teleshop/common';
 import { prisma } from '../../db/prisma';
 import { InboxRepository } from '../../modules/inbox/inbox.repository';
 import pino from 'pino';
 
 const logger = pino({ name: 'Catalog-ReviewCreatedListener' });
 
-export class ReviewCreatedListener extends BaseListener<any> {
+type ReviewCreatedEvent = Extract<DomainEvent, { subject: Subjects.ReviewCreated }>;
+
+export class ReviewCreatedListener extends BaseListener<ReviewCreatedEvent> {
   readonly subject = Subjects.ReviewCreated;
   queueGroupName = QueueGroupNames.CatalogService;
 
-  async onMessage(data: any, _msg: Message) {
-    const { eventId, productId, rating } = data;
+  async onMessage(data: ReviewCreatedEvent['data'], _msg: Message) {
+    const eventId = data.id || (data as ReviewCreatedEvent['data'] & { eventId?: string }).eventId;
+    const { productId, rating } = data;
     const correlationId = data.correlationId || 'N/A';
+
+    if (!eventId || !productId) {
+      throw new Error('Invalid ReviewCreated payload: missing event identifier or productId');
+    }
 
     logger.info(
       { correlationId, eventId, productId, rating },

@@ -69,6 +69,16 @@ export const validatePricesSchema = z.object({
   }),
 });
 
+export const updateProductStatusSchema = z.object({
+  params: z.object({
+    id: z.string().uuid('Invalid product ID'),
+  }),
+  body: z.object({
+    status: z.enum(['DRAFT', 'PUBLISHED', 'HIDDEN', 'ARCHIVED']),
+  }),
+});
+
 export type CreateProductInput = z.infer<typeof createProductSchema>['body'];
 export type UpdateProductInput = z.infer<typeof updateProductSchema>['body'];
 export type ListProductQuery = z.infer<typeof listProductQuerySchema>['query'];
+export type UpdateProductStatusInput = z.infer<typeof updateProductStatusSchema>['body'];

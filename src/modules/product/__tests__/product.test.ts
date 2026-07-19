@@ -46,6 +46,23 @@ describe('Product API Endpoints', () => {
     });
   });
 
+  describe('GET /api/product/seller/me', () => {
+    it('returns seller products instead of being captured by :idOrSlug route', async () => {
+      (ProductRepository.findSellerProducts as jest.Mock).mockResolvedValue({
+        products: [{ id: VALID_PRODUCT_ID, name: 'Seller Product' }],
+        meta: { total: 1, page: 1, limit: 10, totalPages: 1 },
+      });
+
+      const response = await request(app)
+        .get('/api/product/seller/me')
+        .set('Cookie', getAuthCookie())
+        .expect(200);
+
+      expect(ProductRepository.findSellerProducts).toHaveBeenCalledTimes(1);
+      expect(response.body.data.products[0].name).toEqual('Seller Product');
+    });
+  });
+
   describe('POST /api/product', () => {
     it('returns 201 when creating a product successfully', async () => {
       // Mock the category check in the service to return true
@@ -134,6 +151,16 @@ describe('Product API Endpoints', () => {
 
       const responseData = response.body.data || response.body;
       expect(responseData.name).toEqual('Macbook Pro M3 Updated');
+    });
+  });
+
+  describe('PATCH /api/product/:id/status', () => {
+    it('returns 400 for invalid status instead of bubbling into prisma/runtime error', async () => {
+      await request(app)
+        .patch(`/api/product/${VALID_PRODUCT_ID}/status`)
+        .set('Cookie', getAuthCookie())
+        .send({ status: 'INVALID_STATUS' })
+        .expect(400);
     });
   });
 });
